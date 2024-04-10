@@ -292,40 +292,71 @@ def merge_obj2_into_obj1(
     run_dbscan=True,
 ):
     """
-    Merge the new object to the old object
-    This operation is done in-place
+    Merges obj2 into obj1 with structured attribute handling, including explicit checks for unhandled keys.
+
+    Parameters:
+    - obj1, obj2: Objects to merge.
+    - downsample_voxel_size, dbscan_remove_noise, dbscan_eps, dbscan_min_points, spatial_sim_type: Parameters for point cloud processing.
+    - device: Computation device.
+    - run_dbscan: Whether to run DBSCAN for noise removal.
+
+    Returns:
+    - obj1: Updated object after merging.
     """
     global tracker
 
     tracker.track_merge(obj1, obj2)
 
+    # Attributes to be explicitly handled
+    extend_attributes = [
+        "image_idx",
+        "mask_idx",
+        "color_path",
+        "class_id",
+        "mask",
+        "xyxy",
+        "conf",
+        "contain_number",
+    ]
+    add_attributes = ["num_detections", "num_obj_in_class"]
+    skip_attributes = [
+        "id",
+        "class_name",
+        "is_background",
+        "new_counter",
+        "curr_obj_num",
+        "inst_color",
+    ]  # 'inst_color' just keeps obj1's
+    custom_handled = ["pcd", "bbox", "clip_ft", "text_ft", "n_points"]
+
+    # Check for unhandled keys and throw an error if there are
+    all_handled_keys = set(
+        extend_attributes + add_attributes + skip_attributes + custom_handled
+    )
+    unhandled_keys = set(obj2.keys()) - all_handled_keys
+    if unhandled_keys:
+        raise ValueError(
+            f"Unhandled keys detected in obj2: {unhandled_keys}. Please update the merge function to handle these attributes."
+        )
+
+    # Process extend and add attributes
+    for attr in extend_attributes:
+        if attr in obj1 and attr in obj2:
+            obj1[attr].extend(obj2[attr])
+
+    for attr in add_attributes:
+        if attr in obj1 and attr in obj2:
+            obj1[attr] += obj2[attr]
+
+    # Custom handling for 'pcd', 'bbox', 'clip_ft', and 'text_ft'
     n_obj1_det = obj1["num_detections"]
     n_obj2_det = obj2["num_detections"]
 
-    for k in obj1.keys():
-        if k in [
-            "class_name",
-            "mask",
-            "id",
-            "curr_obj_num",
-            "new_counter",
-            "num_obj_in_class",
-        ]:
-            continue
-        if k in ["caption"]:
-            # Here we need to merge two dictionaries and adjust the key of the second one
-            for k2, v2 in obj2["caption"].items():
-                obj1["caption"][k2 + n_obj1_det] = v2
-        elif k not in ["pcd", "bbox", "clip_ft", "text_ft", "class_name"]:
-            if isinstance(obj1[k], list) or isinstance(obj1[k], int):
-                obj1[k] += obj2[k]
-            elif k == "inst_color":
-                obj1[k] = obj1[k]  # Keep the initial instance color
-            else:
-                # TODO: handle other types if needed in the future
-                raise NotImplementedError
-        else:  # pcd, bbox, clip_ft, text_ft are handled below
-            continue
+    # Handling 'caption'
+    if "caption" in obj1 and "caption" in obj2:
+        n_obj1_det = obj1["num_detections"]
+        for key, value in obj2["caption"].items():
+            obj1["caption"][key + n_obj1_det] = value
 
     # merge pcd and bbox
     obj1["pcd"] += obj2["pcd"]
@@ -337,10 +368,14 @@ def merge_obj2_into_obj1(
         dbscan_min_points,
         run_dbscan,
     )
+    # update n_points
+    obj1["n_points"] = len(np.asarray(obj1["pcd"].points))
+
+    # Update 'bbox'
     obj1["bbox"] = get_bounding_box(spatial_sim_type, obj1["pcd"])
     obj1["bbox"].color = [0, 1, 0]
 
-    # merge clip ft
+    # Merge and normalize 'clip_ft'
     obj1["clip_ft"] = (obj1["clip_ft"] * n_obj1_det + obj2["clip_ft"] * n_obj2_det) / (
         n_obj1_det + n_obj2_det
     )
@@ -1076,7 +1111,7 @@ def make_detection_list_from_pcd_and_gobs(
             "class_name": curr_class_name,  # global class id for this detection
             "class_id": [curr_class_idx],  # global class id for this detection
             "num_detections": 1,  # number of detections in this object
-            "mask": gobs["mask"][mask_idx],
+            "mask": [gobs["mask"][mask_idx]],
             "xyxy": [gobs["xyxy"][mask_idx]],
             "conf": [gobs["confidence"][mask_idx]],
             "n_points": len(obj_pcds_and_bboxes[mask_idx]["pcd"].points),
