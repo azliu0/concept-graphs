@@ -14,6 +14,6 @@ add_bg_classes: false
 accumu_classes: false
 sam_variant: sam
 save_video: false
-device: cuda
+device: cpu
 use_slow_vis: false
 exp_suffix: _exp_label

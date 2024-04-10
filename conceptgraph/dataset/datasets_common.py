@@ -43,12 +43,13 @@ def as_intrinsics_matrix(intrinsics):
     K[1, 2] = intrinsics[3]
     return K
 
+
 def from_intrinsics_matrix(K: torch.Tensor) -> tuple[float, float, float, float]:
-    '''
+    """
     Get fx, fy, cx, cy from the intrinsics matrix
-    
+
     return 4 scalars
-    '''
+    """
     fx = to_scalar(K[0, 0])
     fy = to_scalar(K[1, 1])
     cx = to_scalar(K[0, 2])
@@ -107,7 +108,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         load_embeddings: bool = False,
         embedding_dir: str = "feat_lseg_240_320",
         embedding_dim: int = 512,
-        relative_pose: bool = True, # If True, the pose is relative to the first frame
+        relative_pose: bool = True,  # If True, the pose is relative to the first frame
         **kwargs,
     ):
         super().__init__()
@@ -142,7 +143,9 @@ class GradSLAMDataset(torch.utils.data.Dataset):
             raise ValueError("start must be positive. Got {0}.".format(stride))
         if not (end == -1 or end > start):
             raise ValueError(
-                "end ({0}) must be -1 (use all images) or greater than start ({1})".format(end, start)
+                "end ({0}) must be -1 (use all images) or greater than start ({1})".format(
+                    end, start
+                )
             )
 
         self.distortion = (
@@ -169,8 +172,9 @@ class GradSLAMDataset(torch.utils.data.Dataset):
                     "Mismatch between number of color images and number of embedding files."
                 )
         self.num_imgs = len(self.color_paths)
+
         self.poses = self.load_poses()
-        
+
         if self.end == -1:
             self.end = self.num_imgs
 
@@ -179,6 +183,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         if self.load_embeddings:
             self.embedding_paths = self.embedding_paths[self.start : self.end : stride]
         self.poses = self.poses[self.start : self.end : stride]
+
         # Tensor of retained indices (indices of frames and poses that were retained)
         self.retained_inds = torch.arange(self.num_imgs)[self.start : self.end : stride]
         # Update self.num_images after subsampling the dataset
@@ -186,6 +191,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
 
         # self.transformed_poses = datautils.poses_to_transforms(self.poses)
         self.poses = torch.stack(self.poses)
+
         if self.relative_pose:
             self.transformed_poses = self._preprocess_poses(self.poses)
         else:
@@ -250,7 +256,7 @@ class GradSLAMDataset(torch.utils.data.Dataset):
         if self.channels_first:
             depth = datautils.channels_first(depth)
         return depth / self.png_depth_scale
-    
+
     def _preprocess_poses(self, poses: torch.Tensor):
         r"""Preprocesses the poses by setting first pose in a sequence to identity and computing the relative
         homogenous transformation for all other poses.
@@ -270,22 +276,22 @@ class GradSLAMDataset(torch.utils.data.Dataset):
             poses,
             orthogonal_rotations=False,
         )
-        
+
     def get_cam_K(self):
-        '''
+        """
         Return camera intrinsics matrix K
-        
+
         Returns:
             K (torch.Tensor): Camera intrinsics matrix, of shape (3, 3)
-        '''
+        """
         K = as_intrinsics_matrix([self.fx, self.fy, self.cx, self.cy])
         K = torch.from_numpy(K)
         return K
-    
+
     def read_embedding_from_file(self, embedding_path: str):
-        '''
+        """
         Read embedding from file and process it. To be implemented in subclass for each dataset separately.
-        '''
+        """
         raise NotImplementedError
 
     def __getitem__(self, index):
@@ -441,6 +447,7 @@ class ReplicaDataset(GradSLAMDataset):
     ):
         self.input_folder = os.path.join(basedir, sequence)
         self.pose_path = os.path.join(self.input_folder, "traj.txt")
+
         super().__init__(
             config_dict,
             stride=stride,
@@ -593,18 +600,23 @@ class Ai2thorDataset(GradSLAMDataset):
 
     def read_embedding_from_file(self, embedding_file_path):
         if self.embedding_dir == "embed_semseg":
-            embedding = imageio.imread(embedding_file_path) # (H, W)
+            embedding = imageio.imread(embedding_file_path)  # (H, W)
             embedding = cv2.resize(
-                embedding, (self.desired_width, self.desired_height), interpolation=cv2.INTER_NEAREST
+                embedding,
+                (self.desired_width, self.desired_height),
+                interpolation=cv2.INTER_NEAREST,
             )
-            embedding = torch.from_numpy(embedding).long() # (H, W)
-            embedding = F.one_hot(embedding, num_classes = self.embedding_dim) # (H, W, C)
-            embedding = embedding.half() # (H, W, C)
-            embedding = embedding.permute(2, 0, 1) # (C, H, W)
-            embedding = embedding.unsqueeze(0) # (1, C, H, W)
+            embedding = torch.from_numpy(embedding).long()  # (H, W)
+            embedding = F.one_hot(
+                embedding, num_classes=self.embedding_dim
+            )  # (H, W, C)
+            embedding = embedding.half()  # (H, W, C)
+            embedding = embedding.permute(2, 0, 1)  # (C, H, W)
+            embedding = embedding.unsqueeze(0)  # (1, C, H, W)
         else:
             embedding = torch.load(embedding_file_path, map_location="cpu")
         return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
+
 
 class AzureKinectDataset(GradSLAMDataset):
     def __init__(
@@ -625,10 +637,10 @@ class AzureKinectDataset(GradSLAMDataset):
         self.input_folder = os.path.join(basedir, sequence)
         self.pose_path = None
 
-        # check if a file named 'poses_global_dvo.txt' exists in the basedir / sequence folder 
-        if os.path.isfile(os.path.join(basedir, sequence, 'poses_global_dvo.txt')):
-            self.pose_path = os.path.join(basedir, sequence, 'poses_global_dvo.txt')
-            
+        # check if a file named 'poses_global_dvo.txt' exists in the basedir / sequence folder
+        if os.path.isfile(os.path.join(basedir, sequence, "poses_global_dvo.txt")):
+            self.pose_path = os.path.join(basedir, sequence, "poses_global_dvo.txt")
+
         # if "odomfile" in kwargs.keys():
         #     self.pose_path = kwargs["odomfile"]
         super().__init__(
@@ -712,8 +724,9 @@ class AzureKinectDataset(GradSLAMDataset):
 
 class RealsenseDataset(GradSLAMDataset):
     """
-    Dataset class to process depth images captured by realsense camera on the tabletop manipulator 
+    Dataset class to process depth images captured by realsense camera on the tabletop manipulator
     """
+
     def __init__(
         self,
         config_dict,
@@ -763,12 +776,7 @@ class RealsenseDataset(GradSLAMDataset):
         posefiles = natsorted(glob.glob(os.path.join(self.pose_path, "*.npy")))
         poses = []
         P = torch.tensor(
-            [
-                [1, 0, 0, 0],
-                [0, -1, 0, 0],
-                [0, 0, -1, 0],
-                [0, 0, 0, 1]
-            ]
+            [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
         ).float()
         for posefile in posefiles:
             c2w = torch.from_numpy(np.load(posefile)).float()
@@ -788,6 +796,7 @@ class Record3DDataset(GradSLAMDataset):
     Dataset class to read in saved files from the structure created by our
     `save_record3d_stream.py` script
     """
+
     def __init__(
         self,
         config_dict,
@@ -847,12 +856,7 @@ class Record3DDataset(GradSLAMDataset):
         posefiles = natsorted(glob.glob(os.path.join(self.pose_path, "*.npy")))
         poses = []
         P = torch.tensor(
-            [
-                [1, 0, 0, 0],
-                [0, -1, 0, 0],
-                [0, 0, -1, 0],
-                [0, 0, 0, 1]
-            ]
+            [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
         ).float()
         for posefile in posefiles:
             c2w = torch.from_numpy(np.load(posefile)).float()
@@ -885,20 +889,24 @@ class MultiscanDataset(GradSLAMDataset):
     ):
         self.input_folder = os.path.join(basedir, sequence)
         self.pose_path = os.path.join(self.input_folder, f"{sequence}.jsonl")
-        
+
         scene_meta = json.load(
             open(os.path.join(self.input_folder, f"{sequence}.json"), "r")
         )
-        cam_K = scene_meta['streams'][0]['intrinsics']
+        cam_K = scene_meta["streams"][0]["intrinsics"]
         cam_K = np.array(cam_K).reshape(3, 3).T
-        
-        config_dict['camera_params']['fx'] = cam_K[0, 0]
-        config_dict['camera_params']['fy'] = cam_K[1, 1]
-        config_dict['camera_params']['cx'] = cam_K[0, 2]
-        config_dict['camera_params']['cy'] = cam_K[1, 2]
-        config_dict["camera_params"]["image_height"] = scene_meta['streams'][0]['resolution'][0]
-        config_dict["camera_params"]["image_width"] = scene_meta['streams'][0]['resolution'][1]
-        
+
+        config_dict["camera_params"]["fx"] = cam_K[0, 0]
+        config_dict["camera_params"]["fy"] = cam_K[1, 1]
+        config_dict["camera_params"]["cx"] = cam_K[0, 2]
+        config_dict["camera_params"]["cy"] = cam_K[1, 2]
+        config_dict["camera_params"]["image_height"] = scene_meta["streams"][0][
+            "resolution"
+        ][0]
+        config_dict["camera_params"]["image_width"] = scene_meta["streams"][0][
+            "resolution"
+        ][1]
+
         super().__init__(
             config_dict,
             stride=stride,
@@ -911,7 +919,7 @@ class MultiscanDataset(GradSLAMDataset):
             embedding_dim=embedding_dim,
             **kwargs,
         )
-        
+
     def get_filepaths(self):
         color_paths = natsorted(glob.glob(f"{self.input_folder}/outputs/color/*.png"))
         depth_paths = natsorted(glob.glob(f"{self.input_folder}/outputs/depth/*.png"))
@@ -920,9 +928,9 @@ class MultiscanDataset(GradSLAMDataset):
             embedding_paths = natsorted(
                 glob.glob(f"{self.input_folder}/{self.embedding_dir}/*.pt")
             )
-            
+
         return color_paths, depth_paths, embedding_paths
-        
+
     def load_poses(self):
         poses = []
         with open(self.pose_path, "r") as f:
@@ -934,14 +942,14 @@ class MultiscanDataset(GradSLAMDataset):
         for i in range(0, len(lines), step):
             line = lines[i]
             info = json.loads(line)
-            transform = np.asarray(info.get('transform'))
-            transform = np.reshape(transform, (4, 4), order='F')
+            transform = np.asarray(info.get("transform"))
+            transform = np.reshape(transform, (4, 4), order="F")
             transform = np.dot(transform, np.diag([1, -1, -1, 1]))
             transform = transform / transform[3][3]
             poses.append(torch.from_numpy(transform).float())
-            
+
         return poses
-        
+
     def read_embedding_from_file(self, embedding_file_path):
         embedding = torch.load(embedding_file_path)
         return embedding.permute(0, 2, 3, 1)  # (1, H, W, embedding_dim)
@@ -977,7 +985,7 @@ class Hm3dDataset(GradSLAMDataset):
             embedding_dim=embedding_dim,
             **kwargs,
         )
-        
+
     def get_filepaths(self):
         color_paths = natsorted(glob.glob(f"{self.input_folder}/*.png"))
         depth_paths = natsorted(glob.glob(f"{self.input_folder}/*_depth.npy"))
@@ -987,31 +995,27 @@ class Hm3dDataset(GradSLAMDataset):
                 glob.glob(f"{self.input_folder}/{self.embedding_dir}/*.pt")
             )
         return color_paths, depth_paths, embedding_paths
-    
+
     def load_poses(self):
         poses = []
         posefiles = natsorted(glob.glob(f"{self.input_folder}/*.json"))
-        
+
         P = torch.tensor(
-            [
-                [1, 0, 0, 0],
-                [0, -1, 0, 0],
-                [0, 0, -1, 0],
-                [0, 0, 0, 1]
-            ]
+            [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
         ).float()
-        
+
         for posefile in posefiles:
-            with open(posefile, 'r') as f:
+            with open(posefile, "r") as f:
                 pose_raw = json.load(f)
-            pose = np.asarray(pose_raw['pose'])
-            
+            pose = np.asarray(pose_raw["pose"])
+
             pose = torch.from_numpy(pose).float()
             pose = P @ pose @ P.T
-            
+
             poses.append(pose)
-            
+
         return poses
+
 
 def load_dataset_config(path, default_path=None):
     """
@@ -1097,12 +1101,14 @@ def common_dataset_to_batch(dataset):
         embeddings = embeddings.float()
     return colors, depths, intrinsics, poses, embeddings
 
+
 @measure_time
 def get_dataset(dataconfig, basedir, sequence, **kwargs):
     config_dict = load_dataset_config(dataconfig)
     if config_dict["dataset_name"].lower() in ["icl"]:
         return ICLDataset(config_dict, basedir, sequence, **kwargs)
     elif config_dict["dataset_name"].lower() in ["replica"]:
+        print("returning replica dataset", basedir)
         return ReplicaDataset(config_dict, basedir, sequence, **kwargs)
     elif config_dict["dataset_name"].lower() in ["azure", "azurekinect"]:
         return AzureKinectDataset(config_dict, basedir, sequence, **kwargs)
@@ -1116,7 +1122,7 @@ def get_dataset(dataconfig, basedir, sequence, **kwargs):
         return RealsenseDataset(config_dict, basedir, sequence, **kwargs)
     elif config_dict["dataset_name"].lower() in ["multiscan"]:
         return MultiscanDataset(config_dict, basedir, sequence, **kwargs)
-    elif config_dict['dataset_name'].lower() in ['hm3d']:
+    elif config_dict["dataset_name"].lower() in ["hm3d"]:
         return Hm3dDataset(config_dict, basedir, sequence, **kwargs)
     else:
         raise ValueError(f"Unknown dataset name {config_dict['dataset_name']}")

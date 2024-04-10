@@ -6,12 +6,11 @@ defaults:
   - classes
   - logging_level
   - _self_
-  
 
 # hydra:
 #   verbose : true
 
-detections_exp_suffix: s_detections_stride50_1 # s_detections_stride1_3 # s_detections_stride50_2 # exp_s_detections_stride50_yes_bg_44_mr
+detections_exp_suffix: s_detections_stride50_1
 
 stride: 50
 exp_suffix: s_mapping_stride50_1
@@ -30,4 +29,4 @@ hydra:
   # mode: MULTIRUN
   # sweeper:
   #   params:
-  #     scene_id: room0, office0 # 
+  #     scene_id: room0, office0 #

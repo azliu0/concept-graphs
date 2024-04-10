@@ -22,7 +22,7 @@ from natsort import natsorted
 @dataclass
 class ProgramArgs:
     datapath: str = "/home/kuwajerw/new_local_data/new_record3d/ali_apartment/apt_scan_no_smooth"
-    output_dir: str = None  # Optional, set dynamically if not provided
+    output_dir: str|None = None  # Optional, set dynamically if not provided
 
 desired_width = 1440
 desired_height = 1920
