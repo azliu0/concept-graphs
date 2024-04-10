@@ -1,0 +1,4 @@
+dataset_root: /Users/andrew/Desktop/improbable-ai/concept-graphs-mono/Replica
+dataset_config: /Users/andrew/Desktop/improbable-ai/concept-graphs-mono/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica.yaml
+scene_id: room0
+render_camera_path: /Users/andrew/Desktop/improbable-ai/concept-graphs-mono/concept-graphs/conceptgraph/dataset/dataconfigs/replica/replica_room0.json
