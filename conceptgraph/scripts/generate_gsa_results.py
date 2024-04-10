@@ -112,7 +112,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--class_set", type=str, default="scene", 
                         choices=["scene", "generic", "minimal", "tag2text", "ram", "none"], 
                         help="If none, no tagging and detection will be used and the SAM will be run in dense sampling mode. ")
-    parser.add_argument("--detector", type=str, default="yolo", 
+    parser.add_argument("--detector", type=str, default="dino", 
                         choices=["yolo", "dino"], 
                         help="When given classes, whether to use YOLO-World or GroundingDINO to detect objects. ")
     parser.add_argument("--add_bg_classes", action="store_true", 
@@ -531,6 +531,12 @@ def main(args: argparse.Namespace):
                     detections.xyxy = detections.xyxy[valid_idx]
                     detections.confidence = detections.confidence[valid_idx]
                     detections.class_id = detections.class_id[valid_idx]
+
+                    # # Somehow some detections will have class_id=-None, remove them
+                    # valid_idx = [i for i, val in enumerate(detections.class_id) if val is not None]
+                    # detections.xyxy = detections.xyxy[valid_idx]
+                    # detections.confidence = detections.confidence[valid_idx]
+                    # detections.class_id = [detections.class_id[i] for i in valid_idx]
             elif args.detector == "yolo":
                 # YOLO 
                 # yolo_model.set_classes(classes)
